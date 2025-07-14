@@ -239,21 +239,27 @@ class PersistentKernel:
         input: DTensor,
         weight_norm: DTensor,
         weight_linear: DTensor,
+        bias: DTensor,
         output: DTensor,
         grid_dim: tuple,
         block_dim: tuple,
+        use_bias: bool
     ):
         # Currently assume that the input/weight_linear/output are 2D tensors
         assert input.num_dims == 2
         assert weight_linear.num_dims == 2
         assert output.num_dims == 2
+        if use_bias is not None:
+            assert bias.num_dims == 1
         tb_graph = TBGraph(CyTBGraph(grid_dim, block_dim, 1, 64))
         tb_graph.new_input(input, (-1, -1, -1), 1, True)
         tb_graph.new_input(weight_norm, (-1, -1, -1), 0, True)
         tb_graph.new_input(weight_linear, (0, -1, -1), 1, True)
+        tb_graph.new_input(bias, (-1, -1, -1), -1, True)
         tb_graph.new_input(output, (1, -1, -1), -1, True)
-        self.kn_graph.customized([input, weight_norm, weight_linear, output], tb_graph)
-        self.kn_graph.register_task(tb_graph, "rmsnorm_linear")
+        self.kn_graph.customized([input, weight_norm, weight_linear, bias, output], tb_graph)
+        params = [use_bias]
+        self.kn_graph.register_task(tb_graph, "rmsnorm_linear", params)
 
     def attention_layer(
         self,
@@ -267,6 +273,7 @@ class PersistentKernel:
         output: DTensor,
         grid_dim: tuple,
         block_dim: tuple,
+        qk_norm: bool,
     ):
         # Currently assume that input/output
         assert input.num_dims == 2  # (batch_size, fused_outdim / world_size)
@@ -283,11 +290,9 @@ class PersistentKernel:
             assert cos_pos_embed.dim(1) == head_dim
             assert sin_pos_embed.dim(1) == head_dim
             rotary_embed = 1
-        qk_norm = 0
-        if q_norm is not None or k_norm is not None:
+        if qk_norm:
             assert q_norm.num_dims == 1  # (head_dim)
             assert k_norm.num_dims == 1  # (head_dim)
-            qk_norm = 1
             assert q_norm.dim(0) == head_dim
             assert k_norm.dim(0) == head_dim
 

@@ -63,11 +63,13 @@ int TaskRegister::register_embedding_task(threadblock::Graph const &bgraph,
 
 int TaskRegister::register_rmsnorm_linear_task(threadblock::Graph const &bgraph,
                                                std::vector<int> const &params) {
-  assert(params.size() == 0);
+  // params[0]: use_bias
+  assert(params.size() == 1);
+  int use_bias = params[0];
   int batch_size = 0, output_size = 0, reduction_size = 0, output_stride = 0;
   std::vector<tb::TBInputOp *> input_ops;
   std::vector<tb::TBInputOp *> output_ops;
-  int num_inputs = 3;
+  int num_inputs = 4;
   int num_outputs = 1;
 
   assert(bgraph.operators.size() == (size_t)num_inputs + num_outputs);
@@ -96,11 +98,14 @@ int TaskRegister::register_rmsnorm_linear_task(threadblock::Graph const &bgraph,
          batch_size,
          output_size,
          reduction_size,
-         output_stride);
+         output_stride
+         );
   code.e("    task_desc.inputs[0].base_ptr,");
   code.e("    task_desc.inputs[1].base_ptr,");
   code.e("    task_desc.inputs[2].base_ptr,");
+  code.e("    task_desc.inputs[3].base_ptr,");
   code.e("    1e-6f,");
+  code.e("    $,", use_bias);
   code.e("    task_desc.outputs[0].base_ptr);");
   return register_task_variant(TASK_RMS_NORM_LINEAR, code.to_string());
 }

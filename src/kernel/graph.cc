@@ -411,7 +411,7 @@ void Graph::register_task(char const *task_type, std::vector<int> params) {
   } else if (name == "rmsnorm_linear") {
     int variant_id =
         task_register->register_rmsnorm_linear_task(customized->bgraph, params);
-    task_config[op] = std::make_tuple(3, 1, TASK_RMS_NORM_LINEAR, variant_id);
+    task_config[op] = std::make_tuple(4, 1, TASK_RMS_NORM_LINEAR, variant_id);
   } else if (name == "attention") {
     int variant_id =
         task_register->register_attention_task(customized->bgraph, params);

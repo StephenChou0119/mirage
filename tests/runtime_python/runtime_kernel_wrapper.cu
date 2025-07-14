@@ -525,21 +525,25 @@ template <typename T, int BATCH_SIZE, int OUTPUT_SIZE, int REDUCTION_SIZE>
 __global__ void norm_linear_kernel_wrapper(void const *input_ptr,
                                            void const *norm_weight_ptr,
                                            void const *weight_ptr,
+                                           void const *bias_ptr,
                                            float eps,
+                                           int use_bias,
                                            void *output_ptr) {
   norm_linear_task_impl<T,
                         BATCH_SIZE,
                         OUTPUT_SIZE,
                         REDUCTION_SIZE,
                         OUTPUT_SIZE>(
-      input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+      input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
 }
 
 template <typename T, int BATCH_SIZE, int OUTPUT_SIZE, int REDUCTION_SIZE>
 void launch_norm_linear(void const *input_ptr,
                         void const *norm_weight_ptr,
                         void const *weight_ptr,
+                        void const *bias_ptr,
                         float eps,
+                        int use_bias,
                         void *output_ptr) {
   dim3 grid_dim(1, 1, 1);
   dim3 block_dim(128, 1, 1);
@@ -552,40 +556,43 @@ void launch_norm_linear(void const *input_ptr,
 
   norm_linear_kernel_wrapper<T, BATCH_SIZE, OUTPUT_SIZE, REDUCTION_SIZE>
       <<<grid_dim, block_dim, smem_size>>>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
 }
 
 void norm_linear(torch::Tensor input,
                  torch::Tensor norm_weight,
                  torch::Tensor weight,
+                 torch::Tensor bias,
                  float eps,
+                 int use_bias,
                  torch::Tensor output) {
 
   void const *input_ptr = input.data_ptr();
   void const *norm_weight_ptr = norm_weight.data_ptr();
   void const *weight_ptr = weight.data_ptr();
+  void const *bias_ptr = bias.data_ptr();
   void *output_ptr = output.data_ptr();
 
   switch (output.size(1)) {
     case 16:
       launch_norm_linear<bfloat16, 1, 16, 4096>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
       break;
     case 32:
       launch_norm_linear<bfloat16, 1, 32, 4096>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
       break;
     case 64:
       launch_norm_linear<bfloat16, 1, 64, 4096>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
       break;
     case 256:
       launch_norm_linear<bfloat16, 1, 256, 4096>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
       break;
     case 1600:
       launch_norm_linear<bfloat16, 1, 1600, 4096>(
-          input_ptr, norm_weight_ptr, weight_ptr, eps, output_ptr);
+          input_ptr, norm_weight_ptr, weight_ptr, bias_ptr, eps, use_bias, output_ptr);
       break;
     default:
       printf("Unsupported output size in test: %zu\n", output.size(1));
